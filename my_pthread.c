@@ -4,7 +4,7 @@
 
 // name:
 // username of iLab:
-// iLab Server:
+// iLab Server: test
 
 #include "my_pthread_t.h"
 
