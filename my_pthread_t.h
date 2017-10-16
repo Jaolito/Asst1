@@ -16,12 +16,42 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ucontext.h>
+
+
+
 
 typedef uint my_pthread_t;
 
 typedef struct threadControlBlock {
 	/* add something here */
+	unsigned int status;
+	my_pthread_t tid;
+	/* must still account for thread attributes */
+	ucontext_t thread_context;
 } tcb; 
+
+typedef struct context_node { 
+	tcb * thread_block;
+	struct context_node * next;
+} context_node;
+
+
+
+typedef struct queue {
+	/* Pointer to the current context being executed */
+	context_node * current_executing_thread;
+	/* Pointer to the front of the running_queue */
+	context_node * front;
+	context_node * back;
+	unsigned int thread_count;
+} queue;
+
+typedef struct Queue {
+	context_queue[] = 
+} Queue;
+
+
 
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
@@ -31,6 +61,16 @@ typedef struct my_pthread_mutex_t {
 /* define your data structures here: */
 
 // Feel free to add your own auxiliary data structures
+
+/* a global queue that stores a list of all the created threads */
+
+typedef struct __myarg_t { 
+	int a;
+	int b; 
+} myarg_t;
+
+
+
 
 
 /* Function Declarations: */
@@ -58,5 +98,8 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex);
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
+
+
+
 
 #endif
