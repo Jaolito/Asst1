@@ -29,6 +29,7 @@ typedef struct threadControlBlock {
 	my_pthread_t tid;
 	/* must still account for thread attributes */
 	ucontext_t thread_context;
+	unsigned int thread_priority;
 } tcb; 
 
 typedef struct context_node { 
@@ -48,7 +49,9 @@ typedef struct queue {
 } queue;
 
 typedef struct Queue {
-	context_queue[] = 
+	unsigned int priority;
+	my_pthread_t current_running_thread;
+	tcb * context_queue[];
 } Queue;
 
 
