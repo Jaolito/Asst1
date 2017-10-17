@@ -231,6 +231,15 @@ void scheduler(int signum) {
 	if (updateQueue()) {
 		//Let current thread resume
 	} else {
+		
+		context_node * prnt = running_qs->rqs[0]->front;
+		printf("Scheduler: pqueue: ");
+		while(prnt != NULL) {
+			printf("%d ", prnt->thread_block->tid);
+			prnt = prnt->next;
+		}
+		printf("\n");
+		
 		maintenanceCount++;
 		int i;
 		context_node * new_context;
@@ -260,13 +269,14 @@ void scheduler(int signum) {
 						}
 					}
 				}
-				//enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), running_qs->rqs[current->thread_block->thread_priority]);
+				//printf("DqEq: %d\n", running_qs->rqs[i]->front->thread_block->tid);
+				enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), running_qs->rqs[current->thread_block->thread_priority]);
 				if (new_context == NULL) {
 					new_context = current;
 				}
 			}
 		}		
-		/*int t = current->thread_block->thread_priority;
+		int t = new_context->thread_block->thread_priority;
 		itv.it_value.tv_usec = ((25 + 25 * t) * 1000) % 1000000;
 		itv.it_value.tv_sec = 0;
 		itv.it_interval = itv.it_value;
@@ -274,7 +284,7 @@ void scheduler(int signum) {
 		if(setitimer(ITIMER_REAL, &itv, NULL) == -1){
 			//print error
 			return;
-		}*/
+		}
 		
 		
 		
@@ -317,21 +327,62 @@ int updateQueue(){
 	//Determine what to do with current thread
 	switch(fc) {
 		case NONE: return 0; break;
-		case TIMER: break;
-		case YIELD: break;
+		case TIMER: 
+			if (current->thread_block->thread_priority < NUM_PRIORITIES - 1) {
+				current->thread_block->thread_priority++;
+				enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority-1]), running_qs->rqs[current->thread_block->thread_priority]);
+			} else {
+				enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), running_qs->rqs[current->thread_block->thread_priority]);
+			}
+			fc = NONE;
+			break;
+		case YIELD: 
+			enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), running_qs->rqs[current->thread_block->thread_priority]);
+			fc = NONE;
+			break;
 		case PEXIT:
 			printf("PEXIT FLAG\n");
 			dequeuee(running_qs -> rqs[current->thread_block->thread_priority]); 
-			freeContext(current);
+			if (current->thread_block->tid > 0) {
+				freeContext(current);
+			}
 			current = NULL;
 			break;
-		case JOIN: break;
+		case JOIN: 
+			enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), join_queue);
+			fc = NONE;
+			break;
 	}
 	
 	
-	
+	//move oldest (lowest priority) threads to the end of the highest priority queue
 	if (maintenanceCount > MAINT_CYCLE) {
-		//move oldest (lowest priority) threads to the end of the highest priority queue
+		
+		maintenanceCount = 0;
+		
+		queue * highest = running_qs->rqs[0];
+		queue * lowest = running_qs->rqs[NUM_PRIORITIES - 1];
+		context_node * temp;
+		
+		if (lowest->front != NULL) {
+			if (highest->front != NULL) {
+				highest->back->next = lowest->front;
+				highest->back = lowest->back;
+				lowest->front = NULL;
+				lowest->back = NULL;
+			} else {
+				highest->front = lowest->front;
+				highest->back = lowest->back;
+				lowest->front = NULL;
+				lowest->back = NULL;
+			}
+			
+			temp = highest->front;
+			while (temp != NULL) {
+				temp->thread_block->thread_priority = 0;
+				temp = temp->next;
+			}
+		}
 	}
 	
 	return 0;
@@ -354,13 +405,14 @@ void enqueuee(context_node * enter_thread, queue * Q){
 	} else {
 		Q -> back -> next = enter_thread;
 		Q -> back = enter_thread;
+		Q -> back -> next = NULL;
 	}
 }
 
 context_node * dequeuee(queue * Q){
 
 	context_node * temp;
-	if(get_specific_count(Q) == 0){
+	if(Q->front == NULL){
 		return NULL;
 	} else {
 		temp = Q -> front;
