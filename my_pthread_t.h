@@ -9,11 +9,14 @@
 #define MY_PTHREAD_T_H
 
 #define _GNU_SOURCE
+#define NUM_PRIORITIES 5
+#define MAINT_CYCLE 50
 
 /* include lib header files that you need here: */
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ucontext.h>
@@ -37,15 +40,13 @@ typedef struct context_node {
 	struct context_node * next;
 } context_node;
 
-
-
 typedef struct queue {
 	/* Pointer to the current context being executed */
 	context_node * current_executing_thread;
 	/* Pointer to the front of the running_queue */
 	context_node * front;
 	context_node * back;
-	unsigned int thread_count;
+	unsigned int priority;
 } queue;
 
 typedef struct Queue {
@@ -54,6 +55,13 @@ typedef struct Queue {
 	tcb * context_queue[];
 } Queue;
 
+//Priority levels for running queues
+typdef struct pLevels {
+	queue * rqs[NUM_PRIORITIES];
+} pLevels;
+
+//Flags used to determine why the scheduler was called
+typedef enum {NONE, TIMER, YIELD, EXIT} flagCalled;
 
 
 /* mutex struct definition */

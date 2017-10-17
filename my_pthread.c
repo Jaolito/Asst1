@@ -11,8 +11,13 @@
 #define MEM 64000
 #define MAX_THREADS 100
 
-Queue * running_queue = NULL;
-Queue * waiting_queue = NULL;
+pLevels * running_queue = NULL;
+queue * waiting_queue = NULL;
+context_node * current = NULL;
+
+//Update Flags
+flagCalled fc = NONE;
+unsigned int maintenanceCount = 0;
 
 my_pthread_t thread_ids[MAX_THREADS];
 ucontext_t sche_context;
@@ -173,3 +178,64 @@ int main(){
 
 }
 
+
+/* ******************* SCHEDULER ******************* */
+
+
+void createScheduler() {
+	
+	int i;
+	running_queue = (pLevels *) malloc(sizeof(pLevels));
+	
+	for (i = 0; i < NUM_PRIORITIES; i++) {
+		running_queue->rqs[i] = (queue *) malloc(sizeof(queue));
+		running_queue->rqs[i]->front = NULL;
+		running_queue->rqs[i]->back = NULL;
+		running_queue->rqs[i]->current_executing_thread = NULL;
+		running_queue->rqs[i]->priority = i;
+	}
+	waiting_queue = (queue *) malloc(sizeof(queue));
+	waiting_queue->front = NULL;
+	waiting_queue->back = NULL;
+	waiting_queue->current_executing_thread = NULL;
+	waiting_queue->priority = 10;
+	
+	//scheduler called when timer goes off
+	signal(SIGALARM, scheduler);
+}
+
+void scheduler() {
+	
+	if (updateQueue()) {
+		//Let current thread resume
+	}
+	
+	//Else pick the next thread
+	/*
+	 * maintenanceCount++; (After the count hits a certain number, we move the threads from the lowest priority to the top to make sure we don't starve the old ones)
+	 * 
+	 * Find the head of the queue with the highest priority that's not null
+	 * this will be the next thread to run
+	 * 
+	 * set timer (not implemented yet) to certain time based on priority level
+	 * Look at http://www.gnu.org/software/libc/manual/html_node/Setting-an-Alarm.html to implement timer
+	 * 
+	 * swap context?
+	 */
+}
+
+//Updates queues if necessary. Return 1 if current thread should resume
+int updateQueue{
+	
+	//Determine what to do with current thread
+	switch(fc) {
+		case NONE:
+		case TIMER:
+		case YIELD:
+		case EXIT:
+	}
+	
+	if (maintenanceCount > MAINT_CYCLE) {
+		//move oldest (lowest priority) threads to the end of the highest priority queue
+	}
+}

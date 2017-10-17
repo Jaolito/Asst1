@@ -34,18 +34,16 @@ void enqueue(context_node * enter_thread, queue * Q){
 	}
 }
 
-tcb * deqeue(queue * Q){
+context_node * deqeue(queue * Q){
 
 	context_node * temp;
-	tcb * rtn;
 	if(get_specific_count(Q) == 0){
 		return NULL;
 	} else {
 		temp = Q -> front;
 		Q -> front = temp -> next;
 	}
-	rtn = temp -> thread_block;
-	free(temp);
-	return rtn;
+	
+	return temp;
 }
 
