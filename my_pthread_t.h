@@ -122,6 +122,6 @@ void freeContext(context_node * freeable);
 
 context_node * dequeuee(queue * Q);
 
-void enqueue(context_node * enter_thread, queue * Q);
+void enqueuee(context_node * enter_thread, queue * Q);
 
 #endif

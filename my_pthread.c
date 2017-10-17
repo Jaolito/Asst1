@@ -39,8 +39,6 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	tcb * new_thread_block = (tcb *)malloc(sizeof(tcb));
 	context_node * new_node = (context_node *) malloc(sizeof(context_node));
 	
-	printf("In pthread_create\n");
-	
 	if (firstThread) {
 		firstThread = 0;
 		
@@ -64,7 +62,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		new_node -> thread_block = new_thread_block;
 		new_node -> next = NULL;
 		
-		enqueue(new_node, running_qs -> rqs[0]);
+		enqueuee(new_node, running_qs -> rqs[0]);
 		
 		//Gets old thread context and creates old thread node 
 		old_thread_block -> thread_context = old_context;
@@ -76,10 +74,10 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		
 		current = old_node;
 		
-		enqueue(old_node, running_qs -> rqs[0]);
+		enqueuee(old_node, running_qs -> rqs[0]);
 		
 		
-		//Both context nodes are enqueued to the running queue
+		//Both context nodes are enqueueed to the running queue
 		
 	} else {
 		//Creates new thread context and new thread node 
@@ -95,7 +93,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		new_node -> thread_block = new_thread_block;
 		new_node -> next = NULL;
 		
-		enqueue(new_node, running_qs -> rqs[0]);
+		enqueuee(new_node, running_qs -> rqs[0]);
 	}
 	
 	threadCount++;
@@ -129,10 +127,10 @@ void my_pthread_exit(void *value_ptr) {
 		if (temp->thread_block->join_id == current->thread_block->tid) {
 			temp->thread_block->value_ptr = value_ptr;
 			temp->thread_block->thread_priority = 0;
-			enqueue(temp, running_qs -> rqs[0]);
+			enqueuee(temp, running_qs -> rqs[0]);
 			break;
 		} else {
-			enqueue(temp, join_queue);
+			enqueuee(temp, join_queue);
 		}
 	}
 	
@@ -238,11 +236,36 @@ void scheduler(int signum) {
 		context_node * new_context;
 		for (i = 0; i < NUM_PRIORITIES; i++) {
 			new_context = running_qs -> rqs[i] -> front;
+			printf("New context found\n");
 			if (new_context != NULL) {
 				break;
 			}
 		}
+		if (new_context == NULL) {
+			//all queues empty, do something
+		}
 		
+		if (current != NULL) {
+		
+			if (new_context->thread_block->tid == current->thread_block->tid) {
+				printf("Main twice \n");
+				if (new_context->next != NULL) {
+					new_context = new_context->next;
+					printf("Had next: tid is %d \n", new_context->thread_block->tid);
+				} else {
+					for (i = i+1; i < NUM_PRIORITIES; i++) {
+						new_context = running_qs -> rqs[i] -> front;
+						if (new_context != NULL) {
+							break;
+						}
+					}
+				}
+				//enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), running_qs->rqs[current->thread_block->thread_priority]);
+				if (new_context == NULL) {
+					new_context = current;
+				}
+			}
+		}		
 		/*int t = current->thread_block->thread_priority;
 		itv.it_value.tv_usec = ((25 + 25 * t) * 1000) % 1000000;
 		itv.it_value.tv_sec = 0;
@@ -253,9 +276,7 @@ void scheduler(int signum) {
 			return;
 		}*/
 		
-		if (new_context == NULL) {
-			//all queues empty, do something
-		}
+		
 		
 		if (fc == PEXIT) {
 			printf("SET\n");
@@ -299,8 +320,10 @@ int updateQueue(){
 		case TIMER: break;
 		case YIELD: break;
 		case PEXIT:
+			printf("PEXIT FLAG\n");
 			dequeuee(running_qs -> rqs[current->thread_block->thread_priority]); 
 			freeContext(current);
+			current = NULL;
 			break;
 		case JOIN: break;
 	}
@@ -323,8 +346,8 @@ void freeContext(context_node * freeable) {
 
 /* Queues */
 
-void enqueue(context_node * enter_thread, queue * Q){
-	if(get_specific_count(Q) == 0){
+void enqueuee(context_node * enter_thread, queue * Q){
+	if(Q->front == NULL){
 		Q -> front = enter_thread;
 		Q -> back = enter_thread;
 		enter_thread -> next = NULL;
