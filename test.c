@@ -30,7 +30,6 @@ int main() {
 	rc = my_pthread_create(&mp, NULL, mythread, &args2);
 	rc = my_pthread_create(&mp, NULL, mythread, &args3);		
 
-	return 0;
-	
+	return 0;	
 }
 

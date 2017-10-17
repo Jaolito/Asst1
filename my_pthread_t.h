@@ -34,6 +34,8 @@ typedef struct threadControlBlock {
 	/* must still account for thread attributes */
 	ucontext_t * thread_context;
 	unsigned int thread_priority;
+	my_pthread_t join_id;
+	void * value_ptr;
 } tcb; 
 
 typedef struct context_node { 
@@ -42,8 +44,6 @@ typedef struct context_node {
 } context_node;
 
 typedef struct queue {
-	/* Pointer to the current context being executed */
-	context_node * current_executing_thread;
 	/* Pointer to the front of the running_queue */
 	context_node * front;
 	context_node * back;
@@ -55,8 +55,16 @@ typedef struct pLevels {
 	queue * rqs[NUM_PRIORITIES];
 } pLevels;
 
+//Exit nodes
+typedef struct exit_node {
+	my_pthread_t tid;
+	void * value_ptr;
+	struct exit_node * next;
+} exit_node;
+
+
 //Flags used to determine why the scheduler was called
-typedef enum {NONE, TIMER, YIELD, PEXIT} flagCalled;
+typedef enum {NONE, TIMER, YIELD, PEXIT, JOIN} flagCalled;
 
 
 /* mutex struct definition */
@@ -110,5 +118,10 @@ void createScheduler();
 
 int updateQueue();
 
+void freeContext(context_node * freeable);
+
+context_node * dequeuee(queue * Q);
+
+void enqueue(context_node * enter_thread, queue * Q);
 
 #endif
