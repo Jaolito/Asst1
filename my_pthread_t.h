@@ -17,6 +17,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ucontext.h>
@@ -31,7 +32,7 @@ typedef struct threadControlBlock {
 	unsigned int status;
 	my_pthread_t tid;
 	/* must still account for thread attributes */
-	ucontext_t thread_context;
+	ucontext_t * thread_context;
 	unsigned int thread_priority;
 } tcb; 
 
@@ -49,19 +50,13 @@ typedef struct queue {
 	unsigned int priority;
 } queue;
 
-typedef struct Queue {
-	unsigned int priority;
-	my_pthread_t current_running_thread;
-	tcb * context_queue[];
-} Queue;
-
 //Priority levels for running queues
-typdef struct pLevels {
+typedef struct pLevels {
 	queue * rqs[NUM_PRIORITIES];
 } pLevels;
 
 //Flags used to determine why the scheduler was called
-typedef enum {NONE, TIMER, YIELD, EXIT} flagCalled;
+typedef enum {NONE, TIMER, YIELD, PEXIT} flagCalled;
 
 
 /* mutex struct definition */
@@ -75,10 +70,7 @@ typedef struct my_pthread_mutex_t {
 
 /* a global queue that stores a list of all the created threads */
 
-typedef struct __myarg_t { 
-	int a;
-	int b; 
-} myarg_t;
+
 
 
 
@@ -110,7 +102,13 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex);
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
 
+/* Helper Methods */
 
+void scheduler(int signum);
+
+void createScheduler();
+
+int updateQueue();
 
 
 #endif

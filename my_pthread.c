@@ -11,14 +11,19 @@
 #define MEM 64000
 #define MAX_THREADS 100
 
-pLevels * running_queue = NULL;
+pLevels * running_qs = NULL;
 queue * waiting_queue = NULL;
 context_node * current = NULL;
 
 //Update Flags
 flagCalled fc = NONE;
+int firstThread = 1;
 unsigned int maintenanceCount = 0;
 
+//Timer
+struct itimerval itv;
+
+unsigned int threadCount = 1;
 my_pthread_t thread_ids[MAX_THREADS];
 ucontext_t sche_context;
 
@@ -43,24 +48,6 @@ void *mythread(void *arg){
 
 */
 
-int thread_scheduler(/*my_pthread_t id*/){
-	//running_queue ->context_queue[id] -> thread_priority = 3;
- 	
- 	
-	int i;
-	for (i = 0; i<MAX_THREADS; i++){
-		if(thread_ids[i] == 0 || thread_ids[i] == 2){
-			continue;
-		} else{
-			getcontext(&sche_context);
-			running_queue -> current_running_thread = running_queue -> context_queue[i] -> tid;
-			swapcontext(&sche_context, &(running_queue -> context_queue[i] -> thread_context));
-			printf("IN SCHEDULER");
-		}
-	}
-
-	
-}
 uint get_thread_id(){
 	uint i;
 	for(i=0; i<MAX_THREADS; i++){
@@ -74,42 +61,70 @@ uint get_thread_id(){
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	
-	ucontext_t new_context;
-	uint new_tid = get_thread_id();
-	//Set thread status 
+	ucontext_t *new_context, *old_context;
+	new_context = (ucontext_t *) malloc(sizeof(ucontext_t));
+	getcontext(new_context);
 	tcb * new_thread_block = (tcb *)malloc(sizeof(tcb));
-	//context_node * new_node = (context_node *)malloc(sizeof(context_node));
+	context_node * new_node = (context_node *) malloc(sizeof(context_node));
 	
-
-	//Initializes the context of the thread 
-	int get_context_status = getcontext(&new_context);
-
-	if(get_context_status == -1){
-		printf("ERROR in getcontext()");
-		return 0;
-	//Need to initialize the entire tcb 	
-	} else {
-		new_context.uc_link=0;
- 		new_context.uc_stack.ss_sp=malloc(MEM);
- 		new_context.uc_stack.ss_size=MEM;
- 		new_context.uc_stack.ss_flags=0;
- 		makecontext(&new_context, (void*)function, 1, arg);
+	if (firstThread) {
+		firstThread = 0;
+		
+		createScheduler();
+		
+		old_context = (ucontext_t *) malloc(sizeof(ucontext_t));
+		context_node * old_node = (context_node *) malloc(sizeof(context_node));
+		tcb * old_thread_block = (tcb *)malloc(sizeof(tcb));
+		getcontext(old_context);
+		
+		//Creates new thread context and new thread node 
+		new_context -> uc_link=0;
+ 		new_context -> uc_stack.ss_sp=malloc(MEM);
+ 		new_context -> uc_stack.ss_size=MEM;
+ 		new_context -> uc_stack.ss_flags=0;
+ 		makecontext(new_context, (void*)function, 1, arg);
 		new_thread_block -> thread_context = new_context;
+		new_thread_block -> tid = 1;
+		new_thread_block -> thread_priority = 0;
+		
+		new_node -> thread_block = new_thread_block;
+		new_node -> next = NULL;
+		
+		enqueue(new_node, running_qs -> rqs[0]);
+		
+		//Gets old thread context and creates old thread node 
+		old_thread_block -> thread_context = old_context;
+		old_thread_block -> tid = 0;
+		old_thread_block -> thread_priority = 0;
+		
+		old_node -> thread_block = old_thread_block;
+		old_node -> next = NULL;
+		
+		current = old_node;
+		
+		enqueue(old_node, running_qs -> rqs[0]);
+		
+		
+		//Both context nodes are enqueued to the running queue
+		
+	} else {
+		//Creates new thread context and new thread node 
+		new_context -> uc_link=0;
+ 		new_context -> uc_stack.ss_sp=malloc(MEM);
+ 		new_context -> uc_stack.ss_size=MEM;
+ 		new_context -> uc_stack.ss_flags=0;
+ 		makecontext(new_context, (void*)function, 1, arg);
+		new_thread_block -> thread_context = new_context;
+		new_thread_block -> tid = 1;
+		new_thread_block -> thread_priority = 0;
+		
+		new_node -> thread_block = new_thread_block;
+		new_node -> next = NULL;
+		
+		enqueue(new_node, running_qs -> rqs[0]);
 	}
-
-	//new_node -> thread_block = new_thread_block;
-	//new_node -> next = NULL;
-
-	new_thread_block -> tid = new_tid;
-	thread_ids[new_tid] = 1;
-	if (running_queue == NULL){
-		running_queue = (Queue *) malloc(sizeof(Queue));
-	} 
-	running_queue -> context_queue[new_tid] = new_thread_block;
-	//enqueue(new_node, running_queue);
 	
-	
-
+	scheduler(0);
 
 	return 0;
 }
@@ -122,10 +137,8 @@ int my_pthread_yield() {
 /* terminate a thread */
 //Must restore previous context, also must handle if user does a return
 void my_pthread_exit(void *value_ptr) {
-	my_pthread_t current = running_queue ->current_running_thread;
-	running_queue -> context_queue[current] = NULL;
-	thread_ids[current] = 0;
-	thread_scheduler();
+	
+	return;
 }
 
 /* wait for thread termination */
@@ -154,45 +167,20 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 };
 
 
-int main(){
-
-	my_pthread_t mp;
-	int rc;
-	myarg_t args1;
-	myarg_t args2;
-	myarg_t args3;
-	args1.a = 10;
-	args1.b = 20;
-	args2.a = 30;
-	args2.b = 40;
-	args3.a = 50;
-	args3.b = 60;
-	rc = my_pthread_create(&mp, NULL, mythread, &args1);
-	rc = my_pthread_create(&mp, NULL, mythread, &args2);
-	rc = my_pthread_create(&mp, NULL, mythread, &args3);
-
-	thread_scheduler();
-		
-
-	return 0;
-
-}
-
-
 /* ******************* SCHEDULER ******************* */
 
 
 void createScheduler() {
 	
 	int i;
-	running_queue = (pLevels *) malloc(sizeof(pLevels));
+	running_qs = (pLevels *) malloc(sizeof(pLevels));
 	
 	for (i = 0; i < NUM_PRIORITIES; i++) {
-		running_queue->rqs[i] = (queue *) malloc(sizeof(queue));
-		running_queue->rqs[i]->front = NULL;
-		running_queue->rqs[i]->back = NULL;
-		running_queue->rqs[i]->current_executing_thread = NULL;
-		running_queue->rqs[i]->priority = i;
+		running_qs->rqs[i] = (queue *) malloc(sizeof(queue));
+		running_qs->rqs[i]->front = NULL;
+		running_qs->rqs[i]->back = NULL;
+		running_qs->rqs[i]->current_executing_thread = NULL;
+		running_qs->rqs[i]->priority = i;
 	}
 	waiting_queue = (queue *) malloc(sizeof(queue));
 	waiting_queue->front = NULL;
@@ -201,14 +189,33 @@ void createScheduler() {
 	waiting_queue->priority = 10;
 	
 	//scheduler called when timer goes off
-	signal(SIGALARM, scheduler);
+	signal(SIGALRM, scheduler);
 }
 
-void scheduler() {
+void scheduler(int signum) {
 	
 	if (updateQueue()) {
 		//Let current thread resume
+	} else {
+		maintenanceCount++;
+		int i;
+		context_node * new_context;
+		for (i = 0; i < NUM_PRIORITIES; i++) {
+			new_context = running_qs -> rqs[i] -> front;
+			if (new_context != NULL) {
+				break;
+			}
+		}
+		
+		if (new_context == NULL) {
+			//all queues empty, do something
+		}
+		
+		swapcontext(current->thread_block->thread_context, new_context->thread_block->thread_context);
+		
 	}
+	
+	
 	
 	//Else pick the next thread
 	/*
@@ -222,18 +229,30 @@ void scheduler() {
 	 * 
 	 * swap context?
 	 */
+	 
+	 //Set timer
+	 itv.it_value.tv_usec = ((25 + 25 * current->thread_block->thread_priority) * 1000) % 1000000;
+	 itv.it_value.tv_sec = 0;
+	 itv.it_interval = itv.it_value;
+	 
+	 if(setitimer(ITIMER_REAL, &itv, NULL) == -1){
+		 //print error
+        return;
+    }
 }
 
 //Updates queues if necessary. Return 1 if current thread should resume
-int updateQueue{
+int updateQueue(){
 	
 	//Determine what to do with current thread
 	switch(fc) {
-		case NONE:
-		case TIMER:
-		case YIELD:
-		case EXIT:
+		case NONE: break;
+		case TIMER: break;
+		case YIELD: break;
+		case PEXIT: break;
 	}
+	
+	
 	
 	if (maintenanceCount > MAINT_CYCLE) {
 		//move oldest (lowest priority) threads to the end of the highest priority queue
