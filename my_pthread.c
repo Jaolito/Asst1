@@ -17,7 +17,7 @@ queue * join_queue = NULL;
 exit_node * exit_list = NULL;
 
 //Update Flags
-flagCalled fc = NONE;
+flagCalled fc = FIRST;
 int firstThread = 1;
 unsigned int maintenanceCount = 0;
 
@@ -58,6 +58,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		new_thread_block -> thread_context = new_context;
 		new_thread_block -> tid = 1;
 		new_thread_block -> thread_priority = 0;
+		new_thread_block -> join_id = -1;
+		new_thread_block -> value_ptr = NULL;
 		
 		new_node -> thread_block = new_thread_block;
 		new_node -> next = NULL;
@@ -68,6 +70,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		old_thread_block -> thread_context = old_context;
 		old_thread_block -> tid = 0;
 		old_thread_block -> thread_priority = 0;
+		old_thread_block -> join_id = -1;
+		old_thread_block -> value_ptr = NULL;
 		
 		old_node -> thread_block = old_thread_block;
 		old_node -> next = NULL;
@@ -89,6 +93,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		new_thread_block -> thread_context = new_context;
 		new_thread_block -> tid = threadCount;
 		new_thread_block -> thread_priority = 0;
+		new_thread_block -> join_id = -1;
+		new_thread_block -> value_ptr = NULL;
 		
 		new_node -> thread_block = new_thread_block;
 		new_node -> next = NULL;
@@ -98,9 +104,9 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	
 	threadCount++;
 	
-	scheduler(0);
+	scheduler();
 
-	return 0;
+	return threadCount-1;
 }
 
 /* give CPU pocession to other user level threads voluntarily */
@@ -141,7 +147,7 @@ void my_pthread_exit(void *value_ptr) {
 		exit_list = e;
 	}
 	
-	scheduler(0);
+	scheduler();
 	
 	return;
 }
@@ -158,7 +164,9 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	
 	while (temp != NULL) {
 		if (temp->tid == thread) {
-			*value_ptr = temp->value_ptr;
+			if (value_ptr != NULL) {
+				*value_ptr = temp->value_ptr;
+			}
 			return 1;
 		} else {
 			temp = temp -> next;
@@ -169,11 +177,13 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	
 	fc = JOIN;
 	
-	scheduler(0);
+	scheduler();
 	
-	*value_ptr = current->thread_block->value_ptr;
+	if (value_ptr != NULL) {
+		*value_ptr = current->thread_block->value_ptr;
+	}
 	
-	return 0;
+	return 1;
 };
 
 /* initial the mutex lock */
@@ -223,10 +233,16 @@ void createScheduler() {
 	
 	
 	//scheduler called when timer goes off
-	signal(SIGALRM, scheduler);
+	signal(SIGALRM, timer_triggered);
 }
 
-void scheduler(int signum) {
+void timer_triggered(int signum) {
+	printf("TIMER\n");
+	fc = TIMER;
+	scheduler();
+}
+
+void scheduler() {
 	
 	if (updateQueue()) {
 		//Let current thread resume
@@ -251,6 +267,7 @@ void scheduler(int signum) {
 			}
 		}
 		if (new_context == NULL) {
+			return;
 			//all queues empty, do something
 		}
 		
@@ -277,7 +294,7 @@ void scheduler(int signum) {
 			}
 		}		
 		int t = new_context->thread_block->thread_priority;
-		itv.it_value.tv_usec = ((25 + 25 * t) * 1000) % 1000000;
+		itv.it_value.tv_usec = (25 + 25 * t) * 1000;
 		itv.it_value.tv_sec = 0;
 		itv.it_interval = itv.it_value;
 		 
@@ -301,23 +318,6 @@ void scheduler(int signum) {
 		}
 		
 	}
-	
-	
-	
-	//Else pick the next thread
-	/*
-	 * maintenanceCount++; (After the count hits a certain number, we move the threads from the lowest priority to the top to make sure we don't starve the old ones)
-	 * 
-	 * Find the head of the queue with the highest priority that's not null
-	 * this will be the next thread to run
-	 * 
-	 * set timer (not implemented yet) to certain time based on priority level
-	 * Look at http://www.gnu.org/software/libc/manual/html_node/Setting-an-Alarm.html to implement timer
-	 * 
-	 * swap context?
-	 */
-	 
-	 //Set timer
 	 
 }
 
@@ -326,8 +326,14 @@ int updateQueue(){
 	
 	//Determine what to do with current thread
 	switch(fc) {
-		case NONE: return 0; break;
+		case NONE: 
+			printf("NONE CASE\n");
+			return 1;
+		case FIRST: 
+			printf("FIRST CASE\n");
+			return 0;
 		case TIMER: 
+			printf("TIMER CASE\n");
 			if (current->thread_block->thread_priority < NUM_PRIORITIES - 1) {
 				current->thread_block->thread_priority++;
 				enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority-1]), running_qs->rqs[current->thread_block->thread_priority]);
@@ -337,11 +343,12 @@ int updateQueue(){
 			fc = NONE;
 			break;
 		case YIELD: 
+			printf("YIELD CASE\n");
 			enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), running_qs->rqs[current->thread_block->thread_priority]);
 			fc = NONE;
 			break;
 		case PEXIT:
-			printf("PEXIT FLAG\n");
+			printf("PEXIT CASE\n");
 			dequeuee(running_qs -> rqs[current->thread_block->thread_priority]); 
 			if (current->thread_block->tid > 0) {
 				freeContext(current);
@@ -349,6 +356,7 @@ int updateQueue(){
 			current = NULL;
 			break;
 		case JOIN: 
+			printf("JOIN CASE\n");
 			enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), join_queue);
 			fc = NONE;
 			break;

@@ -31,7 +31,6 @@ typedef struct threadControlBlock {
 	/* add something here */
 	unsigned int status;
 	my_pthread_t tid;
-	/* must still account for thread attributes */
 	ucontext_t * thread_context;
 	unsigned int thread_priority;
 	my_pthread_t join_id;
@@ -64,7 +63,7 @@ typedef struct exit_node {
 
 
 //Flags used to determine why the scheduler was called
-typedef enum {NONE, TIMER, YIELD, PEXIT, JOIN} flagCalled;
+typedef enum {NONE, TIMER, YIELD, PEXIT, JOIN, FIRST} flagCalled;
 
 
 /* mutex struct definition */
@@ -112,7 +111,9 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
 
 /* Helper Methods */
 
-void scheduler(int signum);
+void timer_triggered(int signum);
+
+void scheduler();
 
 void createScheduler();
 

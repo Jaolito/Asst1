@@ -27,9 +27,12 @@ int main() {
 	args3.a = 50;
 	args3.b = 60;
 	rc = my_pthread_create(&mp, NULL, mythread, &args1);
+	my_pthread_join(rc, NULL);
 	rc = my_pthread_create(&mp, NULL, mythread, &args2);
-	rc = my_pthread_create(&mp, NULL, mythread, &args3);		
+	my_pthread_join(rc, NULL);
+	rc = my_pthread_create(&mp, NULL, mythread, &args3);
+	my_pthread_join(rc, NULL);
 
-	return 0;	
+	return 0;
 }
 
