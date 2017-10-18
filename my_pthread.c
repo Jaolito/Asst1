@@ -323,6 +323,12 @@ void createScheduler() {
 	
 	//scheduler called when timer goes off
 	signal(SIGALRM, timer_triggered);
+	signal(SIGTERM, testExit);
+}
+
+void testExit(int signum) {
+	printf("SIGTERM\n");
+	my_pthread_exit(NULL);
 }
 
 void timer_triggered(int signum) {
