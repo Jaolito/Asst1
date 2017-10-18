@@ -27,7 +27,9 @@ struct itimerval itv;
 uint threadCount = 1;
 int mutex_count = 0;
 
-
+int getCurrent() {
+	return current->thread_block->tid;
+}
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
@@ -112,7 +114,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	
 	scheduler();
 
-	return threadCount-1;
+	return 0;
 }
 
 /* give CPU pocession to other user level threads voluntarily */
@@ -202,9 +204,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
 	
-	if (mutex != NULL) {
-		return -1;
-	}
+	//mutex = (my_pthread_mutex_t *) malloc(sizeof(my_pthread_mutex_t));
 	
 	mutex->mid = mutex_count++;
 	mutex->locked = 0;
@@ -291,7 +291,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 		}
 		temp = temp->next;
 	}
-	mutex = NULL;
+	//free(mutex);
 	
 	return 0;
 };

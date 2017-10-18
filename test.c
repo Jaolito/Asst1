@@ -50,7 +50,7 @@ void *mythread4(void *arg){
 
 int main() {
 	
-	my_pthread_t mp;
+	/*my_pthread_t mp;
 	my_pthread_t mp2;
 	int rc;
 	myarg_t args1;
@@ -66,9 +66,13 @@ int main() {
 	rc = my_pthread_create(&mp, NULL, mythread, &args2);
 	my_pthread_join(mp, NULL);
 	my_pthread_join(mp2, NULL);
-	/*
+	
 	rc = my_pthread_create(&mp, NULL, mythread, &args3);
 	my_pthread_join(mp, NULL);*/
+	
+	int i = 0;
+	int err;
+	
 
 	return 0;
 }
