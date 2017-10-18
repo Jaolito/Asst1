@@ -25,13 +25,14 @@ unsigned int maintenanceCount = 0;
 struct itimerval itv;
 
 uint threadCount = 1;
+int mutex_count = 0;
 
 
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	
-	printf("In pthread_create\n");
+	//printf("In pthread_create\n");
 	
 	ucontext_t *new_context, *old_context;
 	new_context = (ucontext_t *) malloc(sizeof(ucontext_t));
@@ -60,6 +61,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		new_thread_block -> thread_priority = 0;
 		new_thread_block -> join_id = -1;
 		new_thread_block -> value_ptr = NULL;
+		new_thread_block -> mid = -1;
 		
 		new_node -> thread_block = new_thread_block;
 		new_node -> next = NULL;
@@ -72,6 +74,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		old_thread_block -> thread_priority = 0;
 		old_thread_block -> join_id = -1;
 		old_thread_block -> value_ptr = NULL;
+		old_thread_block -> mid = -1;
 		
 		old_node -> thread_block = old_thread_block;
 		old_node -> next = NULL;
@@ -95,12 +98,15 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		new_thread_block -> thread_priority = 0;
 		new_thread_block -> join_id = -1;
 		new_thread_block -> value_ptr = NULL;
+		new_thread_block -> mid = -1;
 		
 		new_node -> thread_block = new_thread_block;
 		new_node -> next = NULL;
 		
 		enqueuee(new_node, running_qs -> rqs[0]);
 	}
+	
+	*thread = threadCount;
 	
 	threadCount++;
 	
@@ -111,13 +117,20 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
+	
+	if (running_qs->rqs[current->thread_block->thread_priority]->front->next == NULL) {
+		return 0;
+	} else {
+		fc = YIELD;
+		scheduler();
+	}
 	return 0;
 };
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
 	
-	printf("In pthread_exit\n");
+	//printf("In pthread_exit\n");
 	
 	int i;
 	exit_node * e = (exit_node *) malloc(sizeof(exit_node));
@@ -188,21 +201,98 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
+	
+	if (mutex != NULL) {
+		return -1;
+	}
+	
+	mutex->mid = mutex_count++;
+	mutex->locked = 0;
+	mutex->tid = -1;
+	mutex->ready_waiting = 0;
+	
+	
 	return 0;
 };
 
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
+	
+	if (mutex == NULL) {
+		return -1;
+	}
+	
+	while (mutex->locked) {
+		fc = BLOCKED;
+		current->thread_block->mid = mutex->mid;
+		scheduler();
+	} 
+	mutex->locked = 1;
+	mutex->tid = current->thread_block->tid;
+	mutex->ready_waiting = 0;
+	
 	return 0;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
+	
+	if (mutex == NULL) {
+		return -1;
+	}
+	
+	if (mutex->locked == 0) {
+		//Can't unlock an unlocked mutex
+		return -1;
+	} else {
+		if (mutex->tid != current->thread_block->tid) {
+			//Wrong thread calling unlock
+			return -1;
+		} else {
+			mutex->locked = 0;
+			mutex->tid = -1;
+			context_node * temp = waiting_queue->front;
+			while (temp != NULL) {
+				if (mutex->mid == temp->thread_block->mid) {
+					temp->thread_block->mid = -1;
+					temp->thread_block->thread_priority = 0;
+					mutex->ready_waiting = 1;
+					enqueuee(dequeuee(waiting_queue), running_qs->rqs[0]);
+					return 0;
+				}
+				temp = temp->next;
+			}
+		}
+	}
+	
 	return 0;
 };
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
+	
+	if (mutex == NULL) {
+		return -1;
+	}
+	
+	if (mutex->locked) {
+		return -1;
+	}
+	
+	if (mutex->ready_waiting) {
+		return -1;
+	}
+	
+	context_node * temp = waiting_queue->front;
+	
+	while (temp != NULL) {
+		if (mutex->mid == temp->thread_block->mid) {
+			return -1;
+		}
+		temp = temp->next;
+	}
+	mutex = NULL;
+	
 	return 0;
 };
 
@@ -231,13 +321,12 @@ void createScheduler() {
 	join_queue->back = NULL;
 	join_queue->priority = -1;
 	
-	
 	//scheduler called when timer goes off
 	signal(SIGALRM, timer_triggered);
 }
 
 void timer_triggered(int signum) {
-	printf("TIMER\n");
+	//printf("TIMER\n");
 	fc = TIMER;
 	scheduler();
 }
@@ -249,19 +338,19 @@ void scheduler() {
 	} else {
 		
 		context_node * prnt = running_qs->rqs[0]->front;
-		printf("Scheduler: pqueue: ");
+		//printf("Scheduler: pqueue: ");
 		while(prnt != NULL) {
-			printf("%d ", prnt->thread_block->tid);
+			//printf("%d ", prnt->thread_block->tid);
 			prnt = prnt->next;
 		}
-		printf("\n");
+		//printf("\n");
 		
 		maintenanceCount++;
 		int i;
 		context_node * new_context;
 		for (i = 0; i < NUM_PRIORITIES; i++) {
 			new_context = running_qs -> rqs[i] -> front;
-			printf("New context found\n");
+			//printf("New context found\n");
 			if (new_context != NULL) {
 				break;
 			}
@@ -274,10 +363,10 @@ void scheduler() {
 		if (current != NULL) {
 		
 			if (new_context->thread_block->tid == current->thread_block->tid) {
-				printf("Main twice \n");
+				//printf("Main twice \n");
 				if (new_context->next != NULL) {
 					new_context = new_context->next;
-					printf("Had next: tid is %d \n", new_context->thread_block->tid);
+					//printf("Had next: tid is %d \n", new_context->thread_block->tid);
 				} else {
 					for (i = i+1; i < NUM_PRIORITIES; i++) {
 						new_context = running_qs -> rqs[i] -> front;
@@ -306,12 +395,12 @@ void scheduler() {
 		
 		
 		if (fc == PEXIT) {
-			printf("SET\n");
+			//printf("SET\n");
 			fc = NONE;
 			current = new_context;
 			setcontext(new_context->thread_block->thread_context);
 		} else {
-			printf("SWAP\n");
+			//printf("SWAP\n");
 			context_node * old = current;
 			current = new_context;
 			swapcontext(old->thread_block->thread_context, new_context->thread_block->thread_context);
@@ -327,13 +416,13 @@ int updateQueue(){
 	//Determine what to do with current thread
 	switch(fc) {
 		case NONE: 
-			printf("NONE CASE\n");
+			//printf("NONE CASE\n");
 			return 1;
 		case FIRST: 
-			printf("FIRST CASE\n");
+			//printf("FIRST CASE\n");
 			return 0;
 		case TIMER: 
-			printf("TIMER CASE\n");
+			//printf("TIMER CASE\n");
 			if (current->thread_block->thread_priority < NUM_PRIORITIES - 1) {
 				current->thread_block->thread_priority++;
 				enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority-1]), running_qs->rqs[current->thread_block->thread_priority]);
@@ -343,12 +432,12 @@ int updateQueue(){
 			fc = NONE;
 			break;
 		case YIELD: 
-			printf("YIELD CASE\n");
+			//printf("YIELD CASE\n");
 			enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), running_qs->rqs[current->thread_block->thread_priority]);
 			fc = NONE;
 			break;
 		case PEXIT:
-			printf("PEXIT CASE\n");
+			//printf("PEXIT CASE\n");
 			dequeuee(running_qs -> rqs[current->thread_block->thread_priority]); 
 			if (current->thread_block->tid > 0) {
 				freeContext(current);
@@ -356,8 +445,12 @@ int updateQueue(){
 			current = NULL;
 			break;
 		case JOIN: 
-			printf("JOIN CASE\n");
+			//printf("JOIN CASE\n");
 			enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), join_queue);
+			fc = NONE;
+			break;
+		case BLOCKED:
+			enqueuee(dequeuee(running_qs->rqs[current->thread_block->thread_priority]), waiting_queue);
 			fc = NONE;
 			break;
 	}

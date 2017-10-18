@@ -28,13 +28,13 @@
 typedef uint my_pthread_t;
 
 typedef struct threadControlBlock {
-	/* add something here */
 	unsigned int status;
 	my_pthread_t tid;
 	ucontext_t * thread_context;
 	unsigned int thread_priority;
 	my_pthread_t join_id;
 	void * value_ptr;
+	int mid;
 } tcb; 
 
 typedef struct context_node { 
@@ -63,13 +63,18 @@ typedef struct exit_node {
 
 
 //Flags used to determine why the scheduler was called
-typedef enum {NONE, TIMER, YIELD, PEXIT, JOIN, FIRST} flagCalled;
+typedef enum {NONE, TIMER, YIELD, PEXIT, JOIN, FIRST, BLOCKED} flagCalled;
 
 
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
 	/* add something here */
+	int mid;
+	int locked;
+	my_pthread_t tid;
+	my_pthread_t ready_waiting;
 } my_pthread_mutex_t;
+
 
 /* define your data structures here: */
 
