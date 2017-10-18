@@ -15,9 +15,11 @@ void* doSomeThing(void *arg)
     printf("\n Job %d started\n", counter);
 
     for(i=0; i<(0xFFFFFFFF);i++);
-    printf("\n Job %d finished by %d\n", counter, getCurrent());
+    //printf("\n Job %d finished by %d\n", counter, getCurrent());
+    printf("\n Job %d finished \n", counter);
+
     
-    my_pthread_exit(NULL);
+    return NULL;    
 }
 
 int main(void)

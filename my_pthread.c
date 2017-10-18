@@ -35,6 +35,15 @@ int getCurrent() {
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 	
 	//printf("In pthread_create\n");
+	void (*exit_function) (void *) = &my_pthread_exit;
+	ucontext_t *exit_context = (ucontext_t *) malloc(sizeof(ucontext_t));
+	getcontext(exit_context);
+	exit_context -> uc_link=0;
+ 	exit_context -> uc_stack.ss_sp=malloc(MEM);
+ 	exit_context -> uc_stack.ss_size=MEM;
+ 	exit_context -> uc_stack.ss_flags=0;
+ 	makecontext(exit_context, (void*)exit_function, 1, NULL);
+
 	
 	ucontext_t *new_context, *old_context;
 	new_context = (ucontext_t *) malloc(sizeof(ucontext_t));
@@ -53,7 +62,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		getcontext(old_context);
 		
 		//Creates new thread context and new thread node 
-		new_context -> uc_link=0;
+		new_context -> uc_link=exit_context;
  		new_context -> uc_stack.ss_sp=malloc(MEM);
  		new_context -> uc_stack.ss_size=MEM;
  		new_context -> uc_stack.ss_flags=0;
@@ -90,7 +99,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		
 	} else {
 		//Creates new thread context and new thread node 
-		new_context -> uc_link=0;
+		new_context -> uc_link=exit_context;
  		new_context -> uc_stack.ss_sp=malloc(MEM);
  		new_context -> uc_stack.ss_size=MEM;
  		new_context -> uc_stack.ss_flags=0;

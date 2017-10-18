@@ -22,7 +22,7 @@ void* doSomeThing(void *arg)
 
     my_pthread_mutex_unlock(&lock);
     
-    my_pthread_exit(NULL);
+    return NULL;
 }
 
 int main(void)
