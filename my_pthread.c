@@ -7,8 +7,6 @@
 // iLab Server: test
 
 #include "my_pthread_t.h"
-#define MEM 64000
-#define MAX_THREADS 100
 
 pLevels * running_qs = NULL;
 queue * waiting_queue = NULL;
@@ -158,7 +156,6 @@ void my_pthread_exit(void *value_ptr) {
 			temp->thread_block->value_ptr = value_ptr;
 			temp->thread_block->thread_priority = 0;
 			enqueuee(temp, running_qs -> rqs[0]);
-			break;
 		} else {
 			enqueuee(temp, join_queue);
 		}
@@ -318,26 +315,17 @@ void createScheduler() {
 		running_qs->rqs[i] = (queue *) malloc(sizeof(queue));
 		running_qs->rqs[i]->front = NULL;
 		running_qs->rqs[i]->back = NULL;
-		running_qs->rqs[i]->priority = i;
 	}
 	waiting_queue = (queue *) malloc(sizeof(queue));
 	waiting_queue->front = NULL;
 	waiting_queue->back = NULL;
-	waiting_queue->priority = -1;
 	
 	join_queue = (queue *) malloc(sizeof(queue));
 	join_queue->front = NULL;
 	join_queue->back = NULL;
-	join_queue->priority = -1;
 	
 	//scheduler called when timer goes off
 	signal(SIGALRM, timer_triggered);
-	signal(SIGTERM, testExit);
-}
-
-void testExit(int signum) {
-	printf("SIGTERM\n");
-	my_pthread_exit(NULL);
 }
 
 void timer_triggered(int signum) {
@@ -549,3 +537,20 @@ int get_specific_count(queue * Q){
 	return count;
 	
 }
+
+void printAll() {
+	int i;
+	for (i = 0; i < NUM_PRIORITIES; i++) {
+		context_node * temp = running_qs->rqs[i]->front;
+		printf("PRIORITY %d : ", i);
+		while (temp != NULL) {
+			
+			printf("%d ", temp->thread_block->tid);
+			temp = temp->next;
+			
+		}
+		printf("\n");
+		
+	}
+}
+

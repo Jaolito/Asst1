@@ -11,7 +11,8 @@
 #define _GNU_SOURCE
 
 #define NUM_PRIORITIES 5
-#define MAINT_CYCLE 50
+#define MAINT_CYCLE 20
+#define MEM 64000
 
 #define USE_MY_PTHREAD 1
 
@@ -31,7 +32,6 @@
 typedef uint my_pthread_t;
 
 typedef struct threadControlBlock {
-	unsigned int status;
 	my_pthread_t tid;
 	ucontext_t * thread_context;
 	unsigned int thread_priority;
@@ -49,7 +49,6 @@ typedef struct queue {
 	/* Pointer to the front of the running_queue */
 	context_node * front;
 	context_node * back;
-	unsigned int priority;
 } queue;
 
 //Priority levels for running queues
@@ -135,7 +134,7 @@ context_node * dequeuee(queue * Q);
 
 void enqueuee(context_node * enter_thread, queue * Q);
 
-void testExit(int signum);
+void printAll();
 
 #ifdef USE_MY_PTHREAD
 #define pthread_t my_pthread_t
