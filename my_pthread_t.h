@@ -14,6 +14,7 @@
 #define MAINT_CYCLE 20
 #define MEM 64000
 
+#define pthread_ my_pthread_
 #define USE_MY_PTHREAD 1
 
 /* include lib header files that you need here: */
@@ -74,7 +75,7 @@ typedef struct my_pthread_mutex_t {
 	int mid;
 	int locked;
 	my_pthread_t tid;
-	my_pthread_t ready_waiting;
+	int ready_waiting;
 } my_pthread_mutex_t;
 
 

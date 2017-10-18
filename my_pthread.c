@@ -188,7 +188,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 			if (value_ptr != NULL) {
 				*value_ptr = temp->value_ptr;
 			}
-			return 1;
+			return 0;
 		} else {
 			temp = temp -> next;
 		}
@@ -204,7 +204,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 		*value_ptr = current->thread_block->value_ptr;
 	}
 	
-	return 1;
+	return 0;
 };
 
 /* initial the mutex lock */
@@ -298,6 +298,7 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 		temp = temp->next;
 	}
 	//free(mutex);
+	mutex = NULL;
 	
 	return 0;
 };
