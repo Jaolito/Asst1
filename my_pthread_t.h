@@ -10,8 +10,8 @@
 
 #define _GNU_SOURCE
 
-#define NUM_PRIORITIES 5
-#define MAINT_CYCLE 20
+#define NUM_PRIORITIES 100
+#define MAINT_CYCLE 200
 #define MEM 64000
 
 #define pthread_ my_pthread_
