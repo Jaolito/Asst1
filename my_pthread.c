@@ -25,9 +25,6 @@ struct itimerval itv;
 uint threadCount = 1;
 int mutex_count = 0;
 
-int getCurrent() {
-	return current->thread_block->tid;
-}
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {

@@ -29,6 +29,9 @@
 
 
 
+/* define your data structures here: */
+
+// Feel free to add your own auxiliary data structures
 
 typedef uint my_pthread_t;
 
@@ -79,21 +82,8 @@ typedef struct my_pthread_mutex_t {
 } my_pthread_mutex_t;
 
 
-/* define your data structures here: */
-
-// Feel free to add your own auxiliary data structures
-
-/* a global queue that stores a list of all the created threads */
-
-
-
-
-
-
 
 /* Function Declarations: */
-
-int getCurrent();
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg);
